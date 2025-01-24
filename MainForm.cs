@@ -23,7 +23,7 @@ namespace SignalRClientTool
             if (_history.ContainsKey("MethodNames"))
             {
                 cmbMethodName.Items.AddRange(_history["MethodNames"].ToArray());
-            } 
+            }
             // 加载服务端方法名称历史记录
             if (_history.ContainsKey("ServerMethodNames"))
             {
@@ -99,29 +99,32 @@ namespace SignalRClientTool
                     {
                         MessageBox.Show("Please enter a server method name.");
                         return;
-                    }  
+                    }
                     if (string.IsNullOrEmpty(txtMessage.Text))
                     {
-                        return;
-                    }
-
-                    // 动态判断输入类型
-                    if (IsValidJson(txtMessage.Text))
-                    {
-                        JsonDocument jsonDocument = JsonDocument.Parse(txtMessage.Text);
-                        LogMessage($"Sent message: {jsonDocument.RootElement}");
-                        // 调用 SignalR 方法
-                        await _hubConnection.InvokeAsync(methodName, jsonDocument);
+                        await _hubConnection.InvokeAsync(methodName);
                     }
                     else
                     {
-                        LogMessage($"Sent message: {txtMessage.Text}");
-                        // 发送消息
-                        await _hubConnection.InvokeAsync(methodName, txtMessage.Text);
-                    }
-                 
-                    HistoryHelper.AddToHistory(_history, "ServerMethodNames", methodName);
 
+                        // 动态判断输入类型
+                        if (IsValidJson(txtMessage.Text))
+                        {
+                            JsonDocument jsonDocument = JsonDocument.Parse(txtMessage.Text);
+                            LogMessage($"Sent message: {jsonDocument.RootElement}");
+                            // 调用 SignalR 方法
+                            await _hubConnection.InvokeAsync(methodName, jsonDocument);
+                        }
+                        else
+                        {
+                            LogMessage($"Sent message: {txtMessage.Text}");
+                            // 发送消息
+                            await _hubConnection.InvokeAsync(methodName, txtMessage.Text);
+                        }
+
+
+                    }
+                    HistoryHelper.AddToHistory(_history, "ServerMethodNames", methodName);
                 }
                 catch (Exception ex)
                 {
