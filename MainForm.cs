@@ -1,6 +1,11 @@
 using Microsoft.AspNetCore.SignalR.Client;
 using Newtonsoft.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Encodings.Web;
+using System.Text.Unicode;
+using System.Text.Json.Nodes;
+using System.Text;
 
 namespace SignalRClientTool
 {
@@ -12,26 +17,26 @@ namespace SignalRClientTool
         public MainForm()
         {
             InitializeComponent();
-            // 加载历史记录
+
             _history = HistoryHelper.LoadHistory();
-            // 加载 Hub URL 历史记录
+
             if (_history.ContainsKey("HubUrls"))
             {
                 cmbHubUrl.Items.AddRange(_history["HubUrls"].ToArray());
             }
-            // 加载方法名称历史记录
+
             if (_history.ContainsKey("MethodNames"))
             {
                 cmbMethodName.Items.AddRange(_history["MethodNames"].ToArray());
             }
-            // 加载服务端方法名称历史记录
+
             if (_history.ContainsKey("ServerMethodNames"))
             {
                 cmbServerMethodName.Items.AddRange(_history["ServerMethodNames"].ToArray());
             }
         }
         /// <summary>
-        /// 
+        /// Connect to or disconnect from SignalR Hub
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -45,12 +50,12 @@ namespace SignalRClientTool
             }
             if (_hubConnection == null)
             {
-                // 初始化 SignalR 连接
+
                 _hubConnection = new HubConnectionBuilder()
                   .WithUrl(hubUrl)
                   .Build();
 
-                // 处理连接关闭事件
+
                 _hubConnection.Closed += async (error) =>
                 {
                     LogMessage("Connection closed.");
@@ -59,11 +64,11 @@ namespace SignalRClientTool
 
                 try
                 {
-                    // 启动连接
+
                     await _hubConnection.StartAsync();
                     LogMessage("Connected to SignalR Hub.");
                     btnConnect.Text = "Disconnect";
-                    // 保存 Hub URL 到历史记录
+
                     HistoryHelper.AddToHistory(_history, "HubUrls", hubUrl);
                 }
                 catch (Exception ex)
@@ -74,7 +79,7 @@ namespace SignalRClientTool
             }
             else
             {
-                // 断开连接
+
                 await _hubConnection.StopAsync();
                 _hubConnection = null;
                 LogMessage("Disconnected from SignalR Hub.");
@@ -82,13 +87,13 @@ namespace SignalRClientTool
             }
 
         }
+
         /// <summary>
-        /// 
+        /// Send message to SignalR Hub
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
         private async void btnSend_Click(object sender, EventArgs e)
         {
+            // Check connection status
             if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
             {
                 try
@@ -100,30 +105,31 @@ namespace SignalRClientTool
                         MessageBox.Show("Please enter a server method name.");
                         return;
                     }
+
+                    object? result;
+                    // Handle empty message case
                     if (string.IsNullOrEmpty(txtMessage.Text))
                     {
-                        await _hubConnection.InvokeAsync(methodName);
+                        result = await _hubConnection.InvokeAsync<object>(methodName);
+                        LogResponse(result);
                     }
+                    // Handle JSON formatted message
+                    else if (IsValidJson(txtMessage.Text))
+                    {
+                        JsonDocument jsonDocument = JsonDocument.Parse(txtMessage.Text);
+                        LogMessage($"Sent message: {jsonDocument.RootElement}");
+                        result = await _hubConnection.InvokeAsync<object>(methodName, jsonDocument);
+                        LogResponse(result);
+                    }
+                    // Handle plain text message
                     else
                     {
-
-                        // 动态判断输入类型
-                        if (IsValidJson(txtMessage.Text))
-                        {
-                            JsonDocument jsonDocument = JsonDocument.Parse(txtMessage.Text);
-                            LogMessage($"Sent message: {jsonDocument.RootElement}");
-                            // 调用 SignalR 方法
-                            await _hubConnection.InvokeAsync(methodName, jsonDocument);
-                        }
-                        else
-                        {
-                            LogMessage($"Sent message: {txtMessage.Text}");
-                            // 发送消息
-                            await _hubConnection.InvokeAsync(methodName, txtMessage.Text);
-                        }
-
-
+                        LogMessage($"Sent message: {txtMessage.Text}");
+                        result = await _hubConnection.InvokeAsync<object>(methodName, txtMessage.Text);
+                        LogResponse(result);
                     }
+
+                    // Save method name to history
                     HistoryHelper.AddToHistory(_history, "ServerMethodNames", methodName);
                 }
                 catch (Exception ex)
@@ -135,10 +141,9 @@ namespace SignalRClientTool
             {
                 LogMessage("Not connected to SignalR Hub.");
             }
-
         }
         /// <summary>
-        /// 
+        /// Bind message listener to SignalR Hub
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -157,7 +162,7 @@ namespace SignalRClientTool
                 return;
             }
 
-            // 如果已经绑定了该方法，则取消绑定
+
             if (_listeners.ContainsKey(methodName))
             {
                 _listeners[methodName].Dispose();
@@ -166,31 +171,15 @@ namespace SignalRClientTool
             }
             else
             {
-                // 动态绑定新的监听器
+
+                // Create new message listener
                 var listener = _hubConnection.On<object>(methodName, (message) =>
                 {
+                    // Process received message
                     if (message is JsonElement jsonElement)
                     {
-                        // 提取原始值
-                        if (jsonElement.ValueKind == JsonValueKind.Number)
-                        {
-                            int value = jsonElement.GetInt32();
-                            LogMessage($"Received message from {methodName}: {value}");
-                        }
-                        else if (jsonElement.ValueKind == JsonValueKind.String)
-                        {
-                            string value = jsonElement.GetString();
-                            LogMessage($"Received message from {methodName}: {value}");
-                        }
-                        else if (jsonElement.ValueKind == JsonValueKind.Object)
-                        {
-                            string value = JsonConvert.SerializeObject(jsonElement.GetRawText());
-                            LogMessage($"Received message from {methodName}: {value}");
-                        }
-                        else
-                        {
-                            LogMessage($"Received unknown message type from {methodName}: {jsonElement.ValueKind}");
-                        }
+                        string value = FormatJsonResponse(jsonElement);
+                        LogMessage($"Received message from {methodName}: {value}");
                     }
                     else
                     {
@@ -198,17 +187,16 @@ namespace SignalRClientTool
                     }
                 });
 
-                // 保存监听器
+
                 _listeners[methodName] = listener;
                 LogMessage($"Listening to method: {methodName}");
 
-                // 保存方法名称到历史记录
                 HistoryHelper.AddToHistory(_history, "MethodNames", methodName);
             }
 
         }
         /// <summary>
-        /// 
+        /// Remove message listener
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -233,12 +221,75 @@ namespace SignalRClientTool
             }
         }
         /// <summary>
-        /// 
+        /// Format JsonElement response to readable string
+        /// </summary>
+        /// <param name="jsonElement">The JSON element to be formatted</param>
+        /// <returns>Formatted string</returns>
+        private string FormatJsonResponse(JsonElement jsonElement)
+        {
+            switch (jsonElement.ValueKind)
+            {
+                case JsonValueKind.Number:
+                    if (jsonElement.TryGetInt64(out long longValue))
+                        return longValue.ToString();
+                    if (jsonElement.TryGetDouble(out double doubleValue))
+                        return doubleValue.ToString();
+                    return jsonElement.GetRawText();
+
+                case JsonValueKind.String:
+                    return jsonElement.GetString() ?? "";
+
+                case JsonValueKind.True:
+                    return "true";
+
+                case JsonValueKind.False:
+                    return "false";
+
+                case JsonValueKind.Null:
+                    return "null";
+
+                case JsonValueKind.Object:
+                case JsonValueKind.Array:
+                    using (var stream = new MemoryStream())
+                    {
+                        using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+                        {
+                            jsonElement.WriteTo(writer);
+                        }
+                        return Encoding.UTF8.GetString(stream.ToArray());
+                    }
+
+                default:
+                    return jsonElement.GetRawText();
+            }
+        }
+
+        /// <summary>
+        /// Log server response to message log
+        /// </summary>
+        /// <param name="result">Response object from server</param>
+        private void LogResponse(object? result)
+        {
+            if (result != null)
+            {
+                if (result is JsonElement jsonElement)
+                {
+                    string value = FormatJsonResponse(jsonElement);
+                    LogMessage($"Received response: {value}");
+                }
+                else
+                {
+                    LogMessage($"Received response: {result}");
+                }
+            }
+        }
+        /// <summary>
+        /// Attempt to reconnect to SignalR Hub
         /// </summary>
         /// <returns></returns>
         private async Task Reconnect()
         {
-            await Task.Delay(5000); // 等待 5 秒后重试
+            await Task.Delay(5000);
             if (_hubConnection != null)
             {
                 LogMessage("Reconnecting to SignalR Hub...");
@@ -259,22 +310,22 @@ namespace SignalRClientTool
 
         }
         /// <summary>
-        /// 
+        /// Add message to log with timestamp
         /// </summary>
-        /// <param name="message"></param>
+        /// <param name="message">Message to be logged</param>
         private void LogMessage(string message)
         {
-            // 在 UI 线程中更新日志
+
             Invoke((MethodInvoker)delegate
             {
                 txtLog.AppendText($"{DateTime.Now}: {message}{Environment.NewLine}");
             });
         }
         /// <summary>
-        /// 
+        /// Check if a string is valid JSON format
         /// </summary>
-        /// <param name="input"></param>
-        /// <returns></returns>
+        /// <param name="input">String to be checked</param>
+        /// <returns>true if valid JSON, false otherwise</returns>
         private bool IsValidJson(string input)
         {
             try
