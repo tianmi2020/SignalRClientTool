@@ -6,6 +6,8 @@ using System.Text.Encodings.Web;
 using System.Text.Unicode;
 using System.Text.Json.Nodes;
 using System.Text;
+using System.Windows.Forms;
+
 
 namespace SignalRClientTool
 {
@@ -34,6 +36,7 @@ namespace SignalRClientTool
             {
                 cmbServerMethodName.Items.AddRange(_history["ServerMethodNames"].ToArray());
             }
+            ckJsonParameter.Checked = true;
         }
         /// <summary>
         /// Connect to or disconnect from SignalR Hub
@@ -53,15 +56,28 @@ namespace SignalRClientTool
 
                 _hubConnection = new HubConnectionBuilder()
                   .WithUrl(hubUrl)
+                  .WithAutomaticReconnect()
                   .Build();
 
-
+                _hubConnection.ServerTimeout = TimeSpan.FromSeconds(3);
+                _hubConnection.KeepAliveInterval = TimeSpan.FromSeconds(2);
                 _hubConnection.Closed += async (error) =>
                 {
-                    LogMessage("Connection closed.");
-                    await Reconnect();
-                };
+                    try
+                    {
+                        Invoke((MethodInvoker)delegate
+                        {
+                            btnConnect.Text = "Connect";
+                        });
 
+                        LogMessage("Connection closed.");
+                        await Reconnect();
+                    }
+                    catch (Exception ex)
+                    {
+                        LogMessage($"Connection failed: {ex.Message}");
+                    }
+                };
                 try
                 {
 
@@ -96,46 +112,61 @@ namespace SignalRClientTool
             // Check connection status
             if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
             {
+                string methodName = cmbServerMethodName.Text.Trim();
                 try
                 {
-                    string methodName = cmbServerMethodName.Text.Trim();
-
                     if (string.IsNullOrEmpty(methodName))
                     {
                         MessageBox.Show("Please enter a server method name.");
                         return;
-                    }
-
+                    }   
                     object? result;
-                    // Handle empty message case
-                    if (string.IsNullOrEmpty(txtMessage.Text))
+                    if (ckJsonParameter.Checked)
                     {
+                        // Handle empty message case
+                        if (string.IsNullOrEmpty(txtParameter.Text))
+                        {
+                            LogMessage($"Invoke {methodName} with empty parameter");
+                            result = await _hubConnection.InvokeAsync<object>(methodName);
+                            LogResponse(result);
+                        }
+                        // Handle JSON formatted message
+                        else if (IsValidJson(txtParameter.Text))
+                        {
+                            JsonDocument jsonDocument = JsonDocument.Parse(txtParameter.Text);
+                            LogMessage($"Invoke {methodName} with parameter: {jsonDocument.RootElement}");
+                            result = await _hubConnection.InvokeAsync<object>(methodName, jsonDocument);
+                            LogResponse(result);
+                        }
+                        // Handle plain text message
+                        else
+                        {
+                            LogMessage($"Invoke {methodName} with parameter: {txtParameter.Text}");
+                            result = await _hubConnection.InvokeAsync<object>(methodName, txtParameter.Text);
+                            LogResponse(result);
+                        }
+                    }
+                    else
+                    {
+                        LogMessage($"Invoke {methodName} without parameter");
                         result = await _hubConnection.InvokeAsync<object>(methodName);
                         LogResponse(result);
                     }
-                    // Handle JSON formatted message
-                    else if (IsValidJson(txtMessage.Text))
-                    {
-                        JsonDocument jsonDocument = JsonDocument.Parse(txtMessage.Text);
-                        LogMessage($"Sent message: {jsonDocument.RootElement}");
-                        result = await _hubConnection.InvokeAsync<object>(methodName, jsonDocument);
-                        LogResponse(result);
-                    }
-                    // Handle plain text message
-                    else
-                    {
-                        LogMessage($"Sent message: {txtMessage.Text}");
-                        result = await _hubConnection.InvokeAsync<object>(methodName, txtMessage.Text);
-                        LogResponse(result);
-                    }
 
-                    // Save method name to history
-                    HistoryHelper.AddToHistory(_history, "ServerMethodNames", methodName);
                 }
                 catch (Exception ex)
                 {
                     LogMessage($"Failed to send message: {ex.Message}");
                 }
+                // Save method name to history
+                HistoryHelper.AddToHistory(_history, "ServerMethodNames", methodName);
+                HistoryHelper.AddToHistory(_history, $"ServerMethodParameter_{methodName}", txtParameter.Text, false);
+                //check if exist same item in the cmbServerMethodName
+                if (!cmbServerMethodName.Items.Contains(methodName))
+                {
+                    cmbServerMethodName.Items.Add(methodName);
+                }
+                   
             }
             else
             {
@@ -219,6 +250,7 @@ namespace SignalRClientTool
             {
                 LogMessage($"No listener found for method: {methodName}");
             }
+            cmbMethodName.SelectedIndex = -1;
         }
         /// <summary>
         /// Format JsonElement response to readable string
@@ -290,18 +322,24 @@ namespace SignalRClientTool
         private async Task Reconnect()
         {
             await Task.Delay(5000);
-            if (_hubConnection != null)
+            if (_hubConnection != null && _hubConnection.State != HubConnectionState.Connected)
             {
                 LogMessage("Reconnecting to SignalR Hub...");
                 try
                 {
                     await _hubConnection.StartAsync();
+
+                    Invoke((MethodInvoker)delegate
+                    {
+                        btnConnect.Text = "Disconnect";
+                    });
+                    LogMessage("Reconnected to SignalR Hub.");
                 }
                 catch (Exception ex)
                 {
                     LogMessage($"Reconnection failed: {ex.Message}");
                 }
-                LogMessage("Reconnected to SignalR Hub.");
+
             }
             else
             {
@@ -315,7 +353,6 @@ namespace SignalRClientTool
         /// <param name="message">Message to be logged</param>
         private void LogMessage(string message)
         {
-
             Invoke((MethodInvoker)delegate
             {
                 txtLog.AppendText($"{DateTime.Now}: {message}{Environment.NewLine}");
@@ -337,6 +374,30 @@ namespace SignalRClientTool
             {
                 return false;
             }
+        }
+
+        private void btnClear_Click(object sender, EventArgs e)
+        {
+            this.txtLog.Text = "";
+        }
+
+        private void cmbServerMethodName_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            string methodName = cmbServerMethodName.Text.Trim();
+            if (_history.ContainsKey($"ServerMethodParameter_{methodName}"))
+            {
+                //this.txtMessage
+                var ps = _history[$"ServerMethodParameter_{methodName}"].ToArray();
+                if (ps.Length > 0)
+                {
+                    txtParameter.Text = ps[0];
+                }
+            }
+        }
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }

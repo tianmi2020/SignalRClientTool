@@ -23,15 +23,28 @@ public static class HistoryHelper
     }
 
     // 添加历史记录
-    public static void AddToHistory(Dictionary<string, List<string>> history, string key, string value)
+    public static void AddToHistory(Dictionary<string, List<string>> history, string key, string value, bool isAppend = true)
     {
-        if (!history.ContainsKey(key))
+        if (isAppend)
         {
-            history[key] = new List<string>();
-        }
+            if (!history.ContainsKey(key))
+            {
+                history[key] = new List<string>();
+            }
 
-        if (!history[key].Contains(value))
+            if (!history[key].Contains(value))
+            {
+                history[key].Add(value);
+                SaveHistory(history);
+            }
+        }
+        else
         {
+            if (history.ContainsKey(key))
+            {
+                history[key].Remove(value); 
+            }
+            history[key] = new List<string>();
             history[key].Add(value);
             SaveHistory(history);
         }
