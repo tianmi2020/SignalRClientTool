@@ -7,7 +7,7 @@ using System.Text.Unicode;
 using System.Text.Json.Nodes;
 using System.Text;
 using System.Windows.Forms;
-
+using Newtonsoft.Json.Linq;
 
 namespace SignalRClientTool
 {
@@ -36,7 +36,36 @@ namespace SignalRClientTool
             {
                 cmbServerMethodName.Items.AddRange(_history["ServerMethodNames"].ToArray());
             }
+
+            // Always use JSON parameter format
             ckJsonParameter.Checked = true;
+            ckJsonParameter.Enabled = false;
+
+            // Set parameter examples
+            var examples = new StringBuilder();
+            examples.AppendLine("Parameter Input Examples:");
+            examples.AppendLine("1. No parameters: []");
+            examples.AppendLine("2. Single string parameter: [\"myString\"]");
+            examples.AppendLine("3. Single number parameter: [42]");
+            examples.AppendLine("4. Single boolean parameter: [true]");
+            examples.AppendLine("5. Multiple simple parameters: [\"myString\", 42, true]");
+            examples.AppendLine("6. Array parameter: [[\"item1\", \"item2\", \"item3\"]]");
+            examples.AppendLine("7. Single object parameter:");
+            examples.AppendLine("[{");
+            examples.AppendLine("  \"name\": \"myName\",");
+            examples.AppendLine("  \"value\": 42");
+            examples.AppendLine("}]");
+            examples.AppendLine("8. Complex object parameter");
+            examples.AppendLine("[{");
+            examples.AppendLine("  \"Name\": \"myName\",");
+            examples.AppendLine("  \"Keys\": [\"key1\", \"key2\", \"key4\"],");
+            examples.AppendLine("  \"MaxNumber\": 1000,");
+            examples.AppendLine("  \"MaxBytes\": 1024");
+            examples.AppendLine("}]");
+            examples.AppendLine("9. Multiple mixed parameters:");
+            examples.AppendLine("[\"myString\", [\"array1\", \"array2\"], 42, {\"prop\": \"value\"}]");
+
+            lblParamExample.Text = examples.ToString();
         }
         /// <summary>
         /// Connect to or disconnect from SignalR Hub
@@ -121,42 +150,103 @@ namespace SignalRClientTool
                         return;
                     }   
                     object? result;
-                    if (ckJsonParameter.Checked)
+
+                    // Handle empty message case
+                    if (string.IsNullOrEmpty(txtParameter.Text) || txtParameter.Text.Trim() == "[]")
                     {
-                        // Handle empty message case
-                        if (string.IsNullOrEmpty(txtParameter.Text))
-                        {
-                            LogMessage($"Invoke {methodName} with empty parameter");
-                            result = await _hubConnection.InvokeAsync<object>(methodName);
-                            LogResponse(result);
-                        }
-                        // Handle JSON formatted message
-                        else if (IsValidJson(txtParameter.Text))
-                        {
-                            JsonDocument jsonDocument = JsonDocument.Parse(txtParameter.Text);
-                            LogMessage($"Invoke {methodName} with parameter: {jsonDocument.RootElement}");
-                            result = await _hubConnection.InvokeAsync<object>(methodName, jsonDocument);
-                            LogResponse(result);
-                        }
-                        // Handle plain text message
-                        else
-                        {
-                            LogMessage($"Invoke {methodName} with parameter: {txtParameter.Text}");
-                            result = await _hubConnection.InvokeAsync<object>(methodName, txtParameter.Text);
-                            LogResponse(result);
-                        }
+                        LogMessage($"Invoke {methodName} without parameters");
+                        result = await _hubConnection.InvokeCoreAsync<object>(methodName, Array.Empty<object>());
                     }
                     else
                     {
-                        LogMessage($"Invoke {methodName} without parameter");
-                        result = await _hubConnection.InvokeAsync<object>(methodName);
-                        LogResponse(result);
+                        try
+                        {
+                            // Parse the JSON array
+                            var jArray = JArray.Parse(txtParameter.Text);
+                            
+                            // For single complex object parameter
+                            if (jArray.Count == 1 && jArray[0].Type == JTokenType.Object)
+                            {
+                                // Convert to System.Text.Json format
+                                var jsonStr = jArray[0].ToString(Formatting.None);
+                                var jsonElement = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(jsonStr);
+                                
+                                LogMessage($"Invoke {methodName} with parameter: {jsonStr}");
+                                try 
+                                {
+                                    result = await _hubConnection.InvokeCoreAsync<object>(methodName, new object[] { jsonElement });
+                                }
+                                catch (Exception invokeEx)
+                                {
+                                    LogMessage($"Detailed invoke error: {invokeEx.GetType().Name}: {invokeEx.Message}");
+                                    if (invokeEx.InnerException != null)
+                                    {
+                                        LogMessage($"Inner exception: {invokeEx.InnerException.GetType().Name}: {invokeEx.InnerException.Message}");
+                                    }
+                                    throw;
+                                }
+                            }
+                            else
+                            {
+                                // For multiple parameters
+                                var parameters = new List<object>();
+                                foreach (var token in jArray)
+                                {
+                                    if (token.Type == JTokenType.Object)
+                                    {
+                                        var jsonStr = token.ToString(Formatting.None);
+                                        parameters.Add(System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(jsonStr));
+                                    }
+                                    else if (token.Type == JTokenType.Array)
+                                    {
+                                        var jsonStr = token.ToString(Formatting.None);
+                                        parameters.Add(System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(jsonStr));
+                                    }
+                                    else
+                                    {
+                                        // For primitive types, use direct conversion
+                                        parameters.Add(token.ToObject<object>());
+                                    }
+                                }
+
+                                LogMessage($"Invoke {methodName} with parameters: {txtParameter.Text}");
+                                try
+                                {
+                                    result = await _hubConnection.InvokeCoreAsync<object>(methodName, parameters.ToArray());
+                                }
+                                catch (Exception invokeEx)
+                                {
+                                    LogMessage($"Detailed invoke error: {invokeEx.GetType().Name}: {invokeEx.Message}");
+                                    if (invokeEx.InnerException != null)
+                                    {
+                                        LogMessage($"Inner exception: {invokeEx.InnerException.GetType().Name}: {invokeEx.InnerException.Message}");
+                                    }
+                                    throw;
+                                }
+                            }
+                        }
+                        catch (Newtonsoft.Json.JsonException ex)
+                        {
+                            LogMessage($"Invalid JSON format: {ex.Message}");
+                            return;
+                        }
+                        catch (System.Text.Json.JsonException ex)
+                        {
+                            LogMessage($"Invalid JSON format: {ex.Message}");
+                            return;
+                        }
                     }
 
+                    LogResponse(result);
                 }
                 catch (Exception ex)
                 {
-                    LogMessage($"Failed to send message: {ex.Message}");
+                    var errorMessage = $"Failed to send message: {ex.GetType().Name}: {ex.Message}";
+                    if (ex.InnerException != null)
+                    {
+                        errorMessage += $"\nInner Exception: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}";
+                    }
+                    LogMessage(errorMessage);
                 }
                 // Save method name to history
                 HistoryHelper.AddToHistory(_history, "ServerMethodNames", methodName);
@@ -173,6 +263,7 @@ namespace SignalRClientTool
                 LogMessage("Not connected to SignalR Hub.");
             }
         }
+
         /// <summary>
         /// Bind message listener to SignalR Hub
         /// </summary>
@@ -314,6 +405,10 @@ namespace SignalRClientTool
                     LogMessage($"Received response: {result}");
                 }
             }
+            else
+            {
+                LogMessage($"Received response: null");
+            }
         }
         /// <summary>
         /// Attempt to reconnect to SignalR Hub
@@ -398,6 +493,60 @@ namespace SignalRClientTool
         private void MainForm_Load(object sender, EventArgs e)
         {
 
+        }
+
+        /// <summary>
+        /// Parse input text into multiple parameters with appropriate types
+        /// </summary>
+        private object[] ParseParameters(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return Array.Empty<object>();
+
+            try
+            {
+                // Convert the input into a JSON array format
+                var jsonArray = $"[{input}]";
+                // Use JSON.NET to parse the parameters
+                var parameters = JsonConvert.DeserializeObject<JArray>(jsonArray);
+                
+                if (parameters == null)
+                    return Array.Empty<object>();
+
+                // Convert each parameter to the appropriate type
+                var result = new List<object>();
+                foreach (var param in parameters)
+                {
+                    if (param.Type == JTokenType.Array)
+                    {
+                        // Convert array to string[]
+                        result.Add(param.ToObject<string[]>());
+                    }
+                    else if (param.Type == JTokenType.Integer)
+                    {
+                        result.Add(param.ToObject<int>());
+                    }
+                    else if (param.Type == JTokenType.Float)
+                    {
+                        result.Add(param.ToObject<double>());
+                    }
+                    else if (param.Type == JTokenType.Boolean)
+                    {
+                        result.Add(param.ToObject<bool>());
+                    }
+                    else
+                    {
+                        // Default to string for other types
+                        result.Add(param.ToObject<string>());
+                    }
+                }
+                return result.ToArray();
+            }
+            catch (Exception ex)
+            {
+                LogMessage($"Error parsing parameters: {ex.Message}");
+                return Array.Empty<object>();
+            }
         }
     }
 }

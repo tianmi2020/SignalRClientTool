@@ -40,7 +40,6 @@
             cmbServerMethodName = new ComboBox();
             label4 = new Label();
             btnSend = new Button();
-            txtParameter = new TextBox();
             btnClear = new Button();
             tableLayoutPanel1 = new TableLayoutPanel();
             tableLayoutPanel2 = new TableLayoutPanel();
@@ -51,6 +50,9 @@
             tableLayoutPanel4 = new TableLayoutPanel();
             tableLayoutPanel5 = new TableLayoutPanel();
             ckJsonParameter = new CheckBox();
+            tableLayoutPanel8 = new TableLayoutPanel();
+            txtParameter = new TextBox();
+            lblParamExample = new TextBox();
             tableLayoutPanel1.SuspendLayout();
             tableLayoutPanel2.SuspendLayout();
             tableLayoutPanel7.SuspendLayout();
@@ -59,6 +61,7 @@
             tableLayoutPanel6.SuspendLayout();
             tableLayoutPanel4.SuspendLayout();
             tableLayoutPanel5.SuspendLayout();
+            tableLayoutPanel8.SuspendLayout();
             SuspendLayout();
             // 
             // btnConnect
@@ -184,17 +187,6 @@
             btnSend.UseVisualStyleBackColor = true;
             btnSend.Click += btnSend_Click;
             // 
-            // txtParameter
-            // 
-            txtParameter.BorderStyle = BorderStyle.FixedSingle;
-            txtParameter.Dock = DockStyle.Fill;
-            txtParameter.Location = new Point(3, 153);
-            txtParameter.Multiline = true;
-            txtParameter.Name = "txtParameter";
-            txtParameter.ScrollBars = ScrollBars.Vertical;
-            txtParameter.Size = new Size(715, 535);
-            txtParameter.TabIndex = 14;
-            // 
             // btnClear
             // 
             btnClear.Anchor = AnchorStyles.Left;
@@ -257,10 +249,10 @@
             tableLayoutPanel3.ColumnCount = 1;
             tableLayoutPanel3.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             tableLayoutPanel3.Controls.Add(panel4, 0, 2);
-            tableLayoutPanel3.Controls.Add(txtParameter, 0, 4);
             tableLayoutPanel3.Controls.Add(tableLayoutPanel4, 0, 0);
             tableLayoutPanel3.Controls.Add(tableLayoutPanel5, 0, 1);
             tableLayoutPanel3.Controls.Add(ckJsonParameter, 0, 3);
+            tableLayoutPanel3.Controls.Add(tableLayoutPanel8, 0, 4);
             tableLayoutPanel3.Dock = DockStyle.Fill;
             tableLayoutPanel3.Location = new Point(3, 3);
             tableLayoutPanel3.Name = "tableLayoutPanel3";
@@ -347,6 +339,43 @@
             ckJsonParameter.Text = "Invoke with json parameter:";
             ckJsonParameter.UseVisualStyleBackColor = true;
             // 
+            // tableLayoutPanel8
+            // 
+            tableLayoutPanel8.ColumnCount = 1;
+            tableLayoutPanel8.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            tableLayoutPanel8.Controls.Add(txtParameter, 0, 0);
+            tableLayoutPanel8.Controls.Add(lblParamExample, 0, 1);
+            tableLayoutPanel8.Dock = DockStyle.Fill;
+            tableLayoutPanel8.Location = new Point(3, 153);
+            tableLayoutPanel8.Name = "tableLayoutPanel8";
+            tableLayoutPanel8.RowCount = 2;
+            tableLayoutPanel8.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            tableLayoutPanel8.RowStyles.Add(new RowStyle(SizeType.Absolute, 300F));
+            tableLayoutPanel8.Size = new Size(715, 535);
+            tableLayoutPanel8.TabIndex = 22;
+            // 
+            // txtParameter
+            // 
+            txtParameter.BorderStyle = BorderStyle.FixedSingle;
+            txtParameter.Dock = DockStyle.Fill;
+            txtParameter.Location = new Point(3, 3);
+            txtParameter.Multiline = true;
+            txtParameter.Name = "txtParameter";
+            txtParameter.ScrollBars = ScrollBars.Vertical;
+            txtParameter.Size = new Size(709, 229);
+            txtParameter.TabIndex = 15;
+            // 
+            // lblParamExample
+            // 
+            lblParamExample.Dock = DockStyle.Fill;
+            lblParamExample.Location = new Point(3, 238);
+            lblParamExample.Multiline = true;
+            lblParamExample.Name = "lblParamExample";
+            lblParamExample.ReadOnly = true;
+            lblParamExample.ScrollBars = ScrollBars.Vertical;
+            lblParamExample.Size = new Size(709, 294);
+            lblParamExample.TabIndex = 16;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -372,6 +401,8 @@
             tableLayoutPanel4.PerformLayout();
             tableLayoutPanel5.ResumeLayout(false);
             tableLayoutPanel5.PerformLayout();
+            tableLayoutPanel8.ResumeLayout(false);
+            tableLayoutPanel8.PerformLayout();
             ResumeLayout(false);
         }
 
@@ -388,7 +419,6 @@
         private ComboBox cmbServerMethodName;
         private Label label4;
         private Button btnSend;
-        private TextBox txtParameter;
         private Button btnClear;
         private TableLayoutPanel tableLayoutPanel1;
         private TableLayoutPanel tableLayoutPanel2;
@@ -399,5 +429,8 @@
         private TableLayoutPanel tableLayoutPanel6;
         private CheckBox ckJsonParameter;
         private TableLayoutPanel tableLayoutPanel7;
+        private TableLayoutPanel tableLayoutPanel8;
+        private TextBox txtParameter;
+        private TextBox lblParamExample;
     }
 }
