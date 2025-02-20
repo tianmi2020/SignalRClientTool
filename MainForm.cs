@@ -1,13 +1,8 @@
 using Microsoft.AspNetCore.SignalR.Client;
 using Newtonsoft.Json;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Text.Encodings.Web;
-using System.Text.Unicode;
-using System.Text.Json.Nodes;
-using System.Text;
-using System.Windows.Forms;
 using Newtonsoft.Json.Linq;
+using System.Text;
+using System.Text.Json;
 
 namespace SignalRClientTool
 {
@@ -16,6 +11,7 @@ namespace SignalRClientTool
         private Dictionary<string, IDisposable> _listeners = new Dictionary<string, IDisposable>();
         private Dictionary<string, List<string>> _history;
         private HubConnection? _hubConnection;
+        private CancellationTokenSource? _streamCts;
         public MainForm()
         {
             InitializeComponent();
@@ -88,8 +84,8 @@ namespace SignalRClientTool
                   .WithAutomaticReconnect()
                   .Build();
 
-                _hubConnection.ServerTimeout = TimeSpan.FromSeconds(3);
-                _hubConnection.KeepAliveInterval = TimeSpan.FromSeconds(2);
+                //_hubConnection.ServerTimeout = TimeSpan.FromSeconds(3);
+                //_hubConnection.KeepAliveInterval = TimeSpan.FromSeconds(2);
                 _hubConnection.Closed += async (error) =>
                 {
                     try
@@ -138,7 +134,6 @@ namespace SignalRClientTool
         /// </summary>
         private async void btnSend_Click(object sender, EventArgs e)
         {
-            // Check connection status
             if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
             {
                 string methodName = cmbServerMethodName.Text.Trim();
@@ -148,14 +143,21 @@ namespace SignalRClientTool
                     {
                         MessageBox.Show("Please enter a server method name.");
                         return;
-                    }   
-                    object? result;
-
+                    }
+                    // Handle stream cancellation
+                    if (_streamCts != null)
+                    {
+                        _streamCts.Cancel();
+                        _streamCts.Dispose();
+                        _streamCts = null;
+                        btnSend.Text = "Invoke";
+                        return;
+                    }
                     // Handle empty message case
                     if (string.IsNullOrEmpty(txtParameter.Text) || txtParameter.Text.Trim() == "[]")
                     {
                         LogMessage($"Invoke {methodName} without parameters");
-                        result = await _hubConnection.InvokeCoreAsync<object>(methodName, Array.Empty<object>());
+                        await InnerInvoke(methodName, []);
                     }
                     else
                     {
@@ -163,28 +165,17 @@ namespace SignalRClientTool
                         {
                             // Parse the JSON array
                             var jArray = JArray.Parse(txtParameter.Text);
-                            
+
                             // For single complex object parameter
                             if (jArray.Count == 1 && jArray[0].Type == JTokenType.Object)
                             {
                                 // Convert to System.Text.Json format
                                 var jsonStr = jArray[0].ToString(Formatting.None);
-                                var jsonElement = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(jsonStr);
-                                
+                                var jsonElement = System.Text.Json.JsonSerializer.Deserialize<JsonElement>(jsonStr);
+
                                 LogMessage($"Invoke {methodName} with parameter: {jsonStr}");
-                                try 
-                                {
-                                    result = await _hubConnection.InvokeCoreAsync<object>(methodName, new object[] { jsonElement });
-                                }
-                                catch (Exception invokeEx)
-                                {
-                                    LogMessage($"Detailed invoke error: {invokeEx.GetType().Name}: {invokeEx.Message}");
-                                    if (invokeEx.InnerException != null)
-                                    {
-                                        LogMessage($"Inner exception: {invokeEx.InnerException.GetType().Name}: {invokeEx.InnerException.Message}");
-                                    }
-                                    throw;
-                                }
+                              
+                                await InnerInvoke(methodName, [jsonElement]);
                             }
                             else
                             {
@@ -192,37 +183,21 @@ namespace SignalRClientTool
                                 var parameters = new List<object>();
                                 foreach (var token in jArray)
                                 {
-                                    if (token.Type == JTokenType.Object)
+                                    if (token.Type == JTokenType.Object || token.Type == JTokenType.Array)
                                     {
                                         var jsonStr = token.ToString(Formatting.None);
-                                        parameters.Add(System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(jsonStr));
-                                    }
-                                    else if (token.Type == JTokenType.Array)
-                                    {
-                                        var jsonStr = token.ToString(Formatting.None);
-                                        parameters.Add(System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(jsonStr));
+                                        parameters.Add(System.Text.Json.JsonSerializer.Deserialize<JsonElement>(jsonStr));
                                     }
                                     else
                                     {
                                         // For primitive types, use direct conversion
-                                        parameters.Add(token.ToObject<object>());
+                                        parameters.Add(token.ToObject<object>()!);
                                     }
                                 }
 
                                 LogMessage($"Invoke {methodName} with parameters: {txtParameter.Text}");
-                                try
-                                {
-                                    result = await _hubConnection.InvokeCoreAsync<object>(methodName, parameters.ToArray());
-                                }
-                                catch (Exception invokeEx)
-                                {
-                                    LogMessage($"Detailed invoke error: {invokeEx.GetType().Name}: {invokeEx.Message}");
-                                    if (invokeEx.InnerException != null)
-                                    {
-                                        LogMessage($"Inner exception: {invokeEx.InnerException.GetType().Name}: {invokeEx.InnerException.Message}");
-                                    }
-                                    throw;
-                                }
+                                
+                                await InnerInvoke(methodName, [.. parameters]);
                             }
                         }
                         catch (Newtonsoft.Json.JsonException ex)
@@ -230,14 +205,7 @@ namespace SignalRClientTool
                             LogMessage($"Invalid JSON format: {ex.Message}");
                             return;
                         }
-                        catch (System.Text.Json.JsonException ex)
-                        {
-                            LogMessage($"Invalid JSON format: {ex.Message}");
-                            return;
-                        }
                     }
-
-                    LogResponse(result);
                 }
                 catch (Exception ex)
                 {
@@ -256,12 +224,66 @@ namespace SignalRClientTool
                 {
                     cmbServerMethodName.Items.Add(methodName);
                 }
-                   
+
             }
             else
             {
                 LogMessage("Not connected to SignalR Hub.");
             }
+        }
+        /// <summary>
+        /// Inner invoke by the connection   
+        /// </summary>
+        /// <param name="methodName"></param>
+        /// <param name="args"></param>
+        /// <returns></returns>
+        private async Task InnerInvoke(string methodName, object?[] args)
+        {
+            if (ckSteaming.Checked)
+            {
+                _streamCts = new CancellationTokenSource();
+
+                btnSend.Text = "Cancel";
+
+                try
+                {
+                    var stream = _hubConnection!.StreamAsyncCore<object>(methodName, args, _streamCts.Token);
+
+                    await foreach (var item in stream.WithCancellation(_streamCts.Token))
+                    {
+                        // Format the output based on the item type
+                        LogResponse(item);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    LogMessage("Stream cancelled.");
+                }
+                catch (Exception ex)
+                {
+                    LogMessage($"Stream error: {ex.Message}");
+                    if (ex.InnerException != null)
+                    {
+                        LogMessage($"Inner error: {ex.InnerException.Message}");
+                    }
+                }
+                finally
+                {
+                    if (_streamCts != null)
+                    {
+                        _streamCts.Dispose();
+                        _streamCts = null;
+                    }
+                    btnSend.Text = "Invoke";
+                }
+            }
+            else
+            {
+                    var result = await _hubConnection!.InvokeCoreAsync<object>(methodName, args);
+
+                    LogResponse(result); 
+            }
+
         }
 
         /// <summary>
@@ -509,7 +531,7 @@ namespace SignalRClientTool
                 var jsonArray = $"[{input}]";
                 // Use JSON.NET to parse the parameters
                 var parameters = JsonConvert.DeserializeObject<JArray>(jsonArray);
-                
+
                 if (parameters == null)
                     return Array.Empty<object>();
 

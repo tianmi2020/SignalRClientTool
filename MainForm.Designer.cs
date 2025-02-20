@@ -34,7 +34,6 @@
             label2 = new Label();
             cmbMethodName = new ComboBox();
             btnBindListener = new Button();
-            btnRemoveListener = new Button();
             label3 = new Label();
             cmbHubUrl = new ComboBox();
             cmbServerMethodName = new ComboBox();
@@ -47,12 +46,15 @@
             tableLayoutPanel3 = new TableLayoutPanel();
             panel4 = new Panel();
             tableLayoutPanel6 = new TableLayoutPanel();
+            ckSteaming = new CheckBox();
             tableLayoutPanel4 = new TableLayoutPanel();
             tableLayoutPanel5 = new TableLayoutPanel();
-            ckJsonParameter = new CheckBox();
             tableLayoutPanel8 = new TableLayoutPanel();
             txtParameter = new TextBox();
             lblParamExample = new TextBox();
+            panel1 = new Panel();
+            ckJsonParameter = new CheckBox();
+            btnRemoveListener = new Button();
             tableLayoutPanel1.SuspendLayout();
             tableLayoutPanel2.SuspendLayout();
             tableLayoutPanel7.SuspendLayout();
@@ -62,6 +64,7 @@
             tableLayoutPanel4.SuspendLayout();
             tableLayoutPanel5.SuspendLayout();
             tableLayoutPanel8.SuspendLayout();
+            panel1.SuspendLayout();
             SuspendLayout();
             // 
             // btnConnect
@@ -112,30 +115,19 @@
             cmbMethodName.FormattingEnabled = true;
             cmbMethodName.Location = new Point(103, 5);
             cmbMethodName.Name = "cmbMethodName";
-            cmbMethodName.Size = new Size(429, 23);
+            cmbMethodName.Size = new Size(419, 23);
             cmbMethodName.TabIndex = 7;
             // 
             // btnBindListener
             // 
             btnBindListener.Anchor = AnchorStyles.Left;
-            btnBindListener.Location = new Point(538, 5);
+            btnBindListener.Location = new Point(528, 5);
             btnBindListener.Name = "btnBindListener";
             btnBindListener.Size = new Size(74, 23);
             btnBindListener.TabIndex = 8;
             btnBindListener.Text = "Listen";
             btnBindListener.UseVisualStyleBackColor = true;
             btnBindListener.Click += btnBindListener_Click;
-            // 
-            // btnRemoveListener
-            // 
-            btnRemoveListener.Anchor = AnchorStyles.Left;
-            btnRemoveListener.Location = new Point(618, 5);
-            btnRemoveListener.Name = "btnRemoveListener";
-            btnRemoveListener.Size = new Size(75, 23);
-            btnRemoveListener.TabIndex = 9;
-            btnRemoveListener.Text = "Remove";
-            btnRemoveListener.UseVisualStyleBackColor = true;
-            btnRemoveListener.Click += btnRemoveListener_Click;
             // 
             // label3
             // 
@@ -162,7 +154,7 @@
             cmbServerMethodName.FormattingEnabled = true;
             cmbServerMethodName.Location = new Point(103, 5);
             cmbServerMethodName.Name = "cmbServerMethodName";
-            cmbServerMethodName.Size = new Size(509, 23);
+            cmbServerMethodName.Size = new Size(419, 23);
             cmbServerMethodName.TabIndex = 17;
             cmbServerMethodName.SelectedIndexChanged += cmbServerMethodName_SelectedIndexChanged;
             // 
@@ -251,8 +243,8 @@
             tableLayoutPanel3.Controls.Add(panel4, 0, 2);
             tableLayoutPanel3.Controls.Add(tableLayoutPanel4, 0, 0);
             tableLayoutPanel3.Controls.Add(tableLayoutPanel5, 0, 1);
-            tableLayoutPanel3.Controls.Add(ckJsonParameter, 0, 3);
             tableLayoutPanel3.Controls.Add(tableLayoutPanel8, 0, 4);
+            tableLayoutPanel3.Controls.Add(panel1, 0, 3);
             tableLayoutPanel3.Dock = DockStyle.Fill;
             tableLayoutPanel3.Location = new Point(3, 3);
             tableLayoutPanel3.Name = "tableLayoutPanel3";
@@ -276,13 +268,15 @@
             // 
             // tableLayoutPanel6
             // 
-            tableLayoutPanel6.ColumnCount = 3;
+            tableLayoutPanel6.ColumnCount = 4;
             tableLayoutPanel6.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100F));
             tableLayoutPanel6.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            tableLayoutPanel6.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90F));
             tableLayoutPanel6.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100F));
-            tableLayoutPanel6.Controls.Add(btnSend, 2, 0);
             tableLayoutPanel6.Controls.Add(cmbServerMethodName, 1, 0);
             tableLayoutPanel6.Controls.Add(label4, 0, 0);
+            tableLayoutPanel6.Controls.Add(btnSend, 3, 0);
+            tableLayoutPanel6.Controls.Add(ckSteaming, 2, 0);
             tableLayoutPanel6.Dock = DockStyle.Fill;
             tableLayoutPanel6.Location = new Point(0, 0);
             tableLayoutPanel6.Name = "tableLayoutPanel6";
@@ -290,6 +284,17 @@
             tableLayoutPanel6.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             tableLayoutPanel6.Size = new Size(715, 34);
             tableLayoutPanel6.TabIndex = 18;
+            // 
+            // ckSteaming
+            // 
+            ckSteaming.Anchor = AnchorStyles.Left;
+            ckSteaming.AutoSize = true;
+            ckSteaming.Location = new Point(528, 7);
+            ckSteaming.Name = "ckSteaming";
+            ckSteaming.Size = new Size(76, 19);
+            ckSteaming.TabIndex = 23;
+            ckSteaming.Text = "Steaming";
+            ckSteaming.UseVisualStyleBackColor = true;
             // 
             // tableLayoutPanel4
             // 
@@ -313,7 +318,7 @@
             tableLayoutPanel5.ColumnCount = 4;
             tableLayoutPanel5.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100F));
             tableLayoutPanel5.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            tableLayoutPanel5.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80F));
+            tableLayoutPanel5.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90F));
             tableLayoutPanel5.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100F));
             tableLayoutPanel5.Controls.Add(label3, 0, 0);
             tableLayoutPanel5.Controls.Add(cmbMethodName, 1, 0);
@@ -326,18 +331,6 @@
             tableLayoutPanel5.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             tableLayoutPanel5.Size = new Size(715, 34);
             tableLayoutPanel5.TabIndex = 20;
-            // 
-            // ckJsonParameter
-            // 
-            ckJsonParameter.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            ckJsonParameter.AutoSize = true;
-            ckJsonParameter.Location = new Point(10, 128);
-            ckJsonParameter.Margin = new Padding(10, 3, 3, 3);
-            ckJsonParameter.Name = "ckJsonParameter";
-            ckJsonParameter.Size = new Size(172, 19);
-            ckJsonParameter.TabIndex = 21;
-            ckJsonParameter.Text = "Invoke with json parameter:";
-            ckJsonParameter.UseVisualStyleBackColor = true;
             // 
             // tableLayoutPanel8
             // 
@@ -376,6 +369,38 @@
             lblParamExample.Size = new Size(709, 294);
             lblParamExample.TabIndex = 16;
             // 
+            // panel1
+            // 
+            panel1.Controls.Add(ckJsonParameter);
+            panel1.Dock = DockStyle.Fill;
+            panel1.Location = new Point(3, 123);
+            panel1.Name = "panel1";
+            panel1.Size = new Size(715, 24);
+            panel1.TabIndex = 23;
+            // 
+            // ckJsonParameter
+            // 
+            ckJsonParameter.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            ckJsonParameter.AutoSize = true;
+            ckJsonParameter.Location = new Point(3, 3);
+            ckJsonParameter.Margin = new Padding(10, 3, 3, 3);
+            ckJsonParameter.Name = "ckJsonParameter";
+            ckJsonParameter.Size = new Size(172, 19);
+            ckJsonParameter.TabIndex = 22;
+            ckJsonParameter.Text = "Invoke with json parameter:";
+            ckJsonParameter.UseVisualStyleBackColor = true;
+            // 
+            // btnRemoveListener
+            // 
+            btnRemoveListener.Anchor = AnchorStyles.Left;
+            btnRemoveListener.Location = new Point(618, 5);
+            btnRemoveListener.Name = "btnRemoveListener";
+            btnRemoveListener.Size = new Size(75, 23);
+            btnRemoveListener.TabIndex = 9;
+            btnRemoveListener.Text = "Remove";
+            btnRemoveListener.UseVisualStyleBackColor = true;
+            btnRemoveListener.Click += btnRemoveListener_Click;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -393,7 +418,6 @@
             tableLayoutPanel7.ResumeLayout(false);
             tableLayoutPanel7.PerformLayout();
             tableLayoutPanel3.ResumeLayout(false);
-            tableLayoutPanel3.PerformLayout();
             panel4.ResumeLayout(false);
             tableLayoutPanel6.ResumeLayout(false);
             tableLayoutPanel6.PerformLayout();
@@ -403,6 +427,8 @@
             tableLayoutPanel5.PerformLayout();
             tableLayoutPanel8.ResumeLayout(false);
             tableLayoutPanel8.PerformLayout();
+            panel1.ResumeLayout(false);
+            panel1.PerformLayout();
             ResumeLayout(false);
         }
 
@@ -413,7 +439,6 @@
         private Label label2;
         private ComboBox cmbMethodName;
         private Button btnBindListener;
-        private Button btnRemoveListener;
         private Label label3;
         private ComboBox cmbHubUrl;
         private ComboBox cmbServerMethodName;
@@ -427,10 +452,13 @@
         private TableLayoutPanel tableLayoutPanel4;
         private TableLayoutPanel tableLayoutPanel5;
         private TableLayoutPanel tableLayoutPanel6;
-        private CheckBox ckJsonParameter;
         private TableLayoutPanel tableLayoutPanel7;
         private TableLayoutPanel tableLayoutPanel8;
         private TextBox txtParameter;
         private TextBox lblParamExample;
+        private Panel panel1;
+        private CheckBox ckSteaming;
+        private CheckBox ckJsonParameter;
+        private Button btnRemoveListener;
     }
 }
